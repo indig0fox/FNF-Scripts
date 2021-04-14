@@ -13,7 +13,8 @@ _markerNum = 0;
 		//Format marker and set direction
 		_marker setMarkerShapeLocal "RECTANGLE";
 		_marker setMarkerBrushLocal "SolidFull";
-		_marker setMarkerColor "ColorGrey";
+		_marker setMarkerColorLocal "ColorBlack";
+		_marker setMarkerAlphaLocal 0.5;
 		_marker setMarkerDirLocal getDir _x;
 
 		//Grab dimensions of bounding box of the object
@@ -44,7 +45,8 @@ _markerNum = 0;
 		//Format marker and set direction
 		_marker setMarkerShapeLocal "RECTANGLE";
 		_marker setMarkerBrushLocal "SolidFull";
-		_marker setMarkerColor "ColorGrey";
+		_marker setMarkerColorLocal "ColorBlack";
+		_marker setMarkerAlphaLocal 0.5;
 		_marker setMarkerDirLocal getDir _x;
 
 		//Grab dimensions of bounding box of the object

@@ -1,0 +1,2 @@
+- Need to remove Cobra until further notice (green dots over vehicle / gunner sensors)
+- Post references for camos in uniforms so makers can see what the preset looks like

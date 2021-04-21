@@ -142,7 +142,9 @@ try {
 try {
 
 	# First, try removing the normal way
-	Remove-Item -Path ".\$FrameworkTempFolder" -Recurse -Force -EA Stop
+	if (Test-Path ".\$FrameworkTempFolder") {
+		Remove-Item -Path ".\$FrameworkTempFolder" -Recurse -Force -EA Stop
+	}
 } catch [System.ComponentModel.Win32Exception] {
 
 	# Workaround if files are blocked for deletion due to OneDrive sync

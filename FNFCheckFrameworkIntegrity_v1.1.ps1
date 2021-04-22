@@ -53,49 +53,84 @@ $FrameworkTempFileName = "FNFFrameworkTemp.zip"
 $FrameworkTempFolder = "FNF-Framework-Temp"
 
 
+
+# DEFINE IMPORTANT VARIABLES HERE FOR YOUR MACHINE
+Add-Type -AssemblyName System.Windows.Forms
 # Import PresentationFramework for message boxes
 Add-Type -AssemblyName PresentationFramework
 
-# Verify 7-Zip ProgramFiles directory is present (installed)
-$7zPath = "C:\Program Files\7-Zip"
-if (!(Test-Path $7zPath)) {
+# WinMerge
+$WinMergePath = Get-ChildItem -Directory -Filter 'WinMerge' -Path $env:ProgramFiles | Select-Object -ExpandProperty FullName
+if (!$WinMergePath) {
+	$WinMergePath = Get-ChildItem -Directory -Filter 'WinMerge' -Path ${env:ProgramFiles(x86)} | Select-Object -ExpandProperty FullName
+}
+if (!$WinMergePath) {
+	$null = [System.Windows.MessageBox]::Show('Unable to find WinMerge''s install path automatically.
 
-	# If not installed, prompt to download and offer link
-	if (([System.Windows.MessageBox]::Show(
-				"You must install 7-Zip in order to use this script. The download link has been opened in your default browser.`n`nPress OK to open the download page in your default browser.",
-				"Install Required",
-				"OKCancel",
-				"Info")) -eq "OK") {
-
-		# If user clicks OK
-		Start-Process "https://www.7-zip.org/download.html"
-		exit
+Please find the installed WinMergeU.exe file
+using the following dialog.', 'WinMerge', 'OK', 'Information')
+	$FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+		InitialDirectory = $env:SystemDrive;
+		Filter           = 'WinmergeU.exe|WinMergeU.exe';
+	}
+	$null = $FileBrowser.ShowDialog()
+	if ($FileBrowser.FileName) {
+		$WinMergePath = Split-Path -Path $FileBrowser.FileName -Parent
+		$FileBrowser = $null
 	} else {
+		if (([System.Windows.MessageBox]::Show(
+					"You must install WinMerge in order to use this script.`n`nPress OK to open the download page in your default browser.",
+					"Install Required",
+					"OKCancel",
+					"Information")) -eq "OK") {
 
-		# If user clicks Cancel
-		exit
+			# If user clicks OK
+			Start-Process "https://winmerge.org/downloads/"
+			exit
+		} else {
+			# If user clicks Cancel
+			exit
+		}
 	}
 }
 
-$WinMergePath = "C:\Program Files\WinMerge"
-If (!(Test-Path $7zPath)) {
-
-	# If not installed, prompt to download and offer link
-	if (([System.Windows.MessageBox]::Show(
-				"You must install WinMerge in order to use this script. The download link has been opened in your default browser.`n`nPress OK to open the download page in your default browser.",
-				"Install Required",
-				"OKCancel",
-				"Information")) -eq "OK") {
-
-		# If user clicks OK
-		Start-Process "https://winmerge.org/downloads/"
-		exit
+# 7-Zip
+$7zPath = Get-ChildItem -Directory -Filter '7-Zip' -Path $env:ProgramFiles | Select-Object -ExpandProperty FullName
+if (!$7zPath) {
+	$7zPath = Get-ChildItem -Directory -Filter '7-Zip' -Path ${env:ProgramFiles(x86)} | Select-Object -ExpandProperty FullName
+}
+if (!$7zPath) {
+	$null = [System.Windows.MessageBox]::Show('Unable to find 7-Zip''s install path automatically.
+	
+Please find the installed 7z.exe file
+using the following dialog.','7-Zip', 'OK', 'Information')
+	$FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+		InitialDirectory = $env:SystemDrive;
+		Filter           = '7z.exe|7z.exe';
+	}
+	$null = $FileBrowser.ShowDialog()
+	if ($FileBrowser.FileName) {
+		$7zPath = Split-Path -Path $FileBrowser.FileName -Parent
+		$FileBrowser = $null
 	} else {
+		if (([System.Windows.MessageBox]::Show(
+					"You must install 7-Zip in order to use this script.`n`nPress OK to open the download page in your default browser.",
+					"Install Required",
+					"OKCancel",
+					"Information")) -eq "OK") {
 
-		# If user clicks Cancel
-		exit
+			# If user clicks OK
+			Start-Process "https://www.7-zip.org/download.html"
+			exit
+		} else {
+			# If user clicks Cancel
+			exit
+		}
 	}
 }
+
+
+
 
 
 # Confirm working directory is correct
@@ -120,10 +155,40 @@ if ([System.Windows.MessageBox]::Show(
 # Start working in the parent directory of the mission files
 Set-Location $ParentPath
 
-try {
+$GetReleaseFunc = {
+	try {
+		$JSON = (Invoke-WebRequest -Uri "https://api.github.com/repos/Mjolnir64/FNF/releases" -Method GET | Select-Object -ExpandProperty Content | ConvertFrom-Json)[0]
+		$LatestRelease = $JSON[0]
+		$AssetsList = $LatestRelease | Select-Object -ExpandProperty Assets
+		if ($AssetsList[0]) {
+			return $AssetsList[0] | Select-Object -ExpandProperty browser_download_url
+		} else {
+			return "No packages found included with this release!"
+		}
+	} catch {
+		return "Please report the below error to Indigo#6290 on Discord.`n$($PSItem.Exception.Message)"
+	}
+}
 
+$ReleaseCheck = Start-Job -ScriptBlock $GetReleaseFunc
+Write-Host "Fetching latest release."
+Start-Sleep 1
+Write-Host "Fetching latest release.."
+Start-Sleep 1
+Write-Host "Fetching latest release..."
+Start-Sleep 1
+$ReleaseCheckStatus = $ReleaseCheck | Wait-Job | Receive-Job
+
+if ($ReleaseCheckStatus -notmatch '^http') {
+	Write-Warning "Unable to pull reference data.`n$ReleaseCheckStatus"
+	pause
+	exit
+}
+
+try {
 	# Attempt download of the framework to a zip file one directory above.
-	Invoke-WebRequest -Method GET "https://github.com/Mjolnir64/FNF/archive/master.zip" -OutFile ".\$FrameworkTempFileName"
+	# Invoke-WebRequest -Method GET "https://github.com/Mjolnir64/FNF/archive/master.zip" -OutFile ".\$FrameworkTempFileName"
+	Invoke-WebRequest -Method GET -Uri $ReleaseCheckStatus -OutFile ".\$FrameworkTempFileName"
 } catch {
 
 	# Download failed, show error and exit
@@ -198,11 +263,16 @@ if (!(Test-Path $FrameworkTempFolder)) {
 
 
 Start-Process -FilePath "$WinMergePath\WinMergeU.exe" -ArgumentList "/r /fr /dl ""Latest Template"" /dr ""Current Mission"" ""$ParentPath\$FrameworkTempFolder\FNF-master\FNF_MissionTemplate.VR\"" ""$CurrentPath\"""
+
+
+
+
+
 # SIG # Begin signature block
 # MIIR5QYJKoZIhvcNAQcCoIIR1jCCEdICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUkmy5KZoHDGyQlqHQkEa1zs0Y
-# G1qggg1QMIIDFTCCAf2gAwIBAgIQarNwqALG/45HOA0xJfnsbTANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU2glsaj8k3QCiHu/CjDlXRpR0
+# RD6ggg1QMIIDFTCCAf2gAwIBAgIQarNwqALG/45HOA0xJfnsbTANBgkqhkiG9w0B
 # AQsFADAWMRQwEgYDVQQDDAtJbmRpZ28jNjI5MDAeFw0yMTAzMTIxMDM4MThaFw0y
 # MjAzMTIxMDU4MThaMBYxFDASBgNVBAMMC0luZGlnbyM2MjkwMIIBIjANBgkqhkiG
 # 9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2qAtyT1uulJIAYesEd816AT3/QQb/J5rxx9m
@@ -276,23 +346,23 @@ Start-Process -FilePath "$WinMergePath\WinMergeU.exe" -ArgumentList "/r /fr /dl 
 # ldj1po5SMYID/zCCA/sCAQEwKjAWMRQwEgYDVQQDDAtJbmRpZ28jNjI5MAIQarNw
 # qALG/45HOA0xJfnsbTAJBgUrDgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAA
 # oQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4w
-# DAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQxFgQUN9YUVf9ZHdTt76ZWQcOwCgBA
-# RiYwDQYJKoZIhvcNAQEBBQAEggEAN7bYBtO+eG8oJtXLgpyOjOarnwWTY7nsV6/1
-# uac6l+InV2dOFd9MME4pgawDCYU37Gse/ZQr9j7nQj7sDBJR9CVPwBUbWiGINCEg
-# vxYKfQsbrjlhdwjjz/vPWpNVfKAJM7un7cLJJxWnDtbXyhVO1+4oIW2AA+UQhumX
-# 1hdWm8UEGHYWh0mEK+Kl5DXpj9vviLZxZtBqkqmywrty6sOtS9fBApDBChMOM7Mp
-# 5V2V/gDjamZ+Fl5SB5G2xyqfvdnQoRhB9vpDQsZFQJlTXav+SdvfroemG4xv5Ua0
-# 3HEwLLxeCEr3MFoay6O4l/gbZjcAok0GbsZ+xHnV30+NbRr1L6GCAjAwggIsBgkq
+# DAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQxFgQUNl/Ws4xMZLqFU7GToK8QuCuI
+# jIswDQYJKoZIhvcNAQEBBQAEggEAxK1W+ncdd7ASncA39aALXh/oqqK9mVsxcqsb
+# V9PwrFu9o0bhVPkht8UtBFGGEsU2kzY6kniXPNtCeFa8siVVxV0z3US3PWAhdfxK
+# gr2w5A2q5yb9p6C/3Xpj0vh22Vsywc3abCS6PwdJ3cLJl5hmxUZZkmhHrFARyI9/
+# /VS63zZVjY0Nr/1Txn1sg/PhNNBUZumR2YbxT/ci0sckv1ZJumqLxOYs20OFGEh5
+# nJdYGVXSx+r1b4lTNPUkaiY1UXccws8oBn++k+3xqroJ9gOhd4Wy1gtms9V96+z2
+# xOkx7iipy3UjM7jKwgXfPGRA+fKuWtZa8YzpomfWYCBsLQgC/KGCAjAwggIsBgkq
 # hkiG9w0BCQYxggIdMIICGQIBATCBhjByMQswCQYDVQQGEwJVUzEVMBMGA1UEChMM
 # RGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3d3cuZGlnaWNlcnQuY29tMTEwLwYDVQQD
 # EyhEaWdpQ2VydCBTSEEyIEFzc3VyZWQgSUQgVGltZXN0YW1waW5nIENBAhANQkrg
 # vjqI/2BAIc4UAPDdMA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcNAQkDMQsGCSqG
-# SIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjEwMzI0MTIzNzAzWjAvBgkqhkiG9w0B
-# CQQxIgQgd2JJAiRPe7GTShrGocMXYnfKcZnmjywXlNO88Ymh4DUwDQYJKoZIhvcN
-# AQEBBQAEggEArKjhgxHktE8a1UYgoWh9dUYZxUR1EcHr8Ku2ItkzW0rscvzJCmiP
-# ty2+QhC5iJ90lFLcV4MCnbBC8S2Hi5aYK7C+VTJcn3lmW6gdJCqWl+UJkkjKQoSh
-# OfUA7ih9GIMbwQYzWeakHnd4LDHEUJgwlh4ybWOSQvOiARfsZoqFq6mC5A1eq06+
-# KmNupB1U4qz2FacwCuuv+D7Eu6hR/siSzH2biShPvw02hww2BIYP5BDVo44gFeQE
-# RR2xODSy5Q9wi4bvNXmxSRBZs+AUM8JMouhMnMaleNxlcfNnKAhw8zHpLL9/lmyL
-# HZovs0RqOZRx/EuZkJ4IHWNugN20V3wa9A==
+# SIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjEwNDIyMDQxNDIwWjAvBgkqhkiG9w0B
+# CQQxIgQgl6Zb8ZT93A/H8r2plMTafWFwTywWGjzaCoea44cuIYgwDQYJKoZIhvcN
+# AQEBBQAEggEAJLOl5STZnMDH+hP83RkQjbmJ5K7i9nls7O6kFl0mD7jaH/fcoZ/c
+# 0Ut744VhOFZntHjpHWnCWHor/+YL7TuPAPVg9iMuXVBU4aWYMwsS6iitYLzp0wST
+# IYwXc5CoI2Tn18HgNmIpdTzqvdqKZxC1rVOWkC701vKAPRh6gK+qghUIOWY9slU9
+# d1aqusUZzZZK0R4fJzUEw1wSl0g0qy1O9O4cvvWoB09utxZ0dVWehV1V+yOuBoY7
+# Vc6RCvKI5Uh83XLYclsv9XjlkyjYfoarvki+uDILLTF5XLs8yGs63dNS6z5lzzEL
+# sKMHxDZwWAQn0tLwY4MImSjZxDA27B0e3g==
 # SIG # End signature block

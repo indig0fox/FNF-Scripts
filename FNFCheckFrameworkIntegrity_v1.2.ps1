@@ -262,7 +262,7 @@ if (!(Test-Path $FrameworkTempFolder)) {
 }
 
 
-Start-Process -FilePath "$WinMergePath\WinMergeU.exe" -ArgumentList "/r /fr /dl ""Latest Template"" /dr ""Current Mission"" ""$ParentPath\$FrameworkTempFolder\FNF-master\FNF_MissionTemplate.VR\"" ""$CurrentPath\"""
+Start-Process -FilePath "$WinMergePath\WinMergeU.exe" -ArgumentList "/r /fr /dl ""Latest Template"" /dr ""Current Mission"" ""$ParentPath\$FrameworkTempFolder\FNF_MissionTemplate.VR\"" ""$CurrentPath\"""
 
 
 
